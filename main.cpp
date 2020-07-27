@@ -35,58 +35,48 @@ _packet_out*shmaddr_out;
 
 char buf[BUF_SIZE];
 
-int main(void)
-{
+struct stat st = {0};
+
+void dfs(char*currPath, char*currDstPath){
     struct dirent *de;  // Pointer for directory entry
- 
-    // opendir() returns a pointer of DIR type.
-    DIR *dr = opendir(DIRRECTORY);
- 
+    DIR *dr = opendir(currPath);// opendir() returns a pointer of DIR type.
     if (dr == NULL)  // opendir returns NULL if couldn't open directory
     {
         printf("Could not open current directory" );
-        return 0;
+        return;
     }
-    
-    shmid_pid = shmget((key_t)0x1237, sizeof(_packet), IPC_CREAT | 0666);
-    shmaddr_f_to_p = (_packet*)shmat(shmid_pid, NULL, 0);
-
-    shmid_out = shmget((key_t)0x1236, sizeof(_packet_out), IPC_CREAT | 0666);
-    shmaddr_out = (_packet_out*)shmat(shmid_out, NULL, 0);
-    
-    char srcPath[1000];
-    char dstPath[1000];
-    //sem_init(&mysem0, 0, 1);
+    char srcPath[200];
+    char dstPath[200];
     while ((de = readdir(dr)) != NULL)
     {
         if (de->d_type == DT_REG){
             //printf("%s\n", de->d_name);
-            int len = strlen(DIRRECTORY);
-            memcpy(srcPath, DIRRECTORY, len);
+            int len = strlen(currPath);
+            memcpy(srcPath, currPath, len);
             memcpy(&srcPath[len], "/", 1);
             memcpy(&srcPath[len+1], de->d_name, strlen(de->d_name));
             memcpy(&srcPath[len+1 + strlen(de->d_name)], "\0", 1);
-            printf("src path : %s\n", srcPath);
+            //printf("src path : %s\n", srcPath);
             
-            len = strlen(dstDIR);
-            memcpy(dstPath, dstDIR, len);
+            len = strlen(currDstPath);
+            memcpy(dstPath, currDstPath, len);
             memcpy(&dstPath[len], "/", 1);
             memcpy(&dstPath[len+1], de->d_name, strlen(de->d_name));
             memcpy(&dstPath[len+1 + strlen(de->d_name)], "\0", 1);
-            printf("dst path : %s\n", dstPath);
+            //printf("dst path : %s\n", dstPath);
             /*
-            sem_wait(&mysem0);
-            strcpy(shmaddr_out->dir, dstPath);
-            shmaddr_out->flag = 1;
+             sem_wait(&mysem0);
+             strcpy(shmaddr_out->dir, dstPath);
+             shmaddr_out->flag = 1;
+             
+             shmaddr_f_to_p->flag = 0;
+             while(!shmaddr_f_to_p->flag);
+             int pid = shmaddr_f_to_p->pid;
+             pid = 0x11223344;
+             int fid = shmaddr_f_to_p->fid;
+             sem_post(&mysem0);*/
             
-            shmaddr_f_to_p->flag = 0;
-            while(!shmaddr_f_to_p->flag);
-            int pid = shmaddr_f_to_p->pid;
-            pid = 0x11223344;
-            int fid = shmaddr_f_to_p->fid;
-            sem_post(&mysem0);*/
             
-
             int srcFd = open(srcPath, O_RDWR|O_CREAT);
             int dstFd = open(dstPath, O_RDWR|O_CREAT);
             //int dstFd = syscall(OPEN_KEY, file_name, O_RDWR|O_CREAT, 0, pid ,fid);
@@ -105,8 +95,45 @@ int main(void)
             close(srcFd);
             close(dstFd);
         }
+        else if (de->d_type == DT_DIR && strcmp(de->d_name, ".") &&  strcmp(de->d_name, "..")){
+            char nextPath[200];
+            char nextDstPath[200];
+            
+            int len = strlen(currPath);
+            memcpy(nextPath, currPath, len);
+            memcpy(&nextPath[len], "/", 1);
+            memcpy(&nextPath[len+1], de->d_name, strlen(de->d_name));
+            memcpy(&nextPath[len+1 + strlen(de->d_name)], "\0", 1);
+            //printf("nextPath : %s\n", nextPath);
+            
+            len = strlen(currDstPath);
+            memcpy(nextDstPath, currDstPath, len);
+            memcpy(&nextDstPath[len], "/", 1);
+            memcpy(&nextDstPath[len+1], de->d_name, strlen(de->d_name));
+            memcpy(&nextDstPath[len+1 + strlen(de->d_name)], "\0", 1);
+            //printf("nextDstPath : %s\n", nextDstPath);
+            
+            if (stat(nextDstPath, &st) == -1) {
+                mkdir(nextDstPath, 0700);
+            }
+            
+            dfs(nextPath, nextDstPath);
+        }
     }
- 
     closedir(dr);
+}
+
+int main(void)
+{
+    shmid_pid = shmget((key_t)0x1237, sizeof(_packet), IPC_CREAT | 0666);
+    shmaddr_f_to_p = (_packet*)shmat(shmid_pid, NULL, 0);
+    
+    shmid_out = shmget((key_t)0x1236, sizeof(_packet_out), IPC_CREAT | 0666);
+    shmaddr_out = (_packet_out*)shmat(shmid_out, NULL, 0);
+    
+    
+    //sem_init(&mysem0, 0, 1);
+    dfs(DIRRECTORY, dstDIR);
+    
     return 0;
 }
