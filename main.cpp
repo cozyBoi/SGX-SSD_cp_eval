@@ -10,7 +10,7 @@
 #include <sys/shm.h>
 #include <sys/sem.h>
 #include <semaphore.h>
-#include <pthread.h>
+#include <fcntl.h>
 
 typedef struct packet{
     int flag;
@@ -29,8 +29,8 @@ int shmid_out;
 _packet*shmaddr_f_to_p;
 _packet_out*shmaddr_out;
 
-#define DIRRECTORY "/Users/ppp123/Desktop/eval1"
-#define dstDIR "/Users/ppp123/Desktop/eval"
+#define DIRRECTORY "/home/jinu/SSD2/eval"
+#define dstDIR "/homw/jinu/SSD/eval"
 #define BUF_SIZE 4096
 
 char buf[BUF_SIZE];
@@ -64,7 +64,6 @@ void dfs(char*currPath, char*currDstPath){
             memcpy(&dstPath[len+1], de->d_name, strlen(de->d_name));
             memcpy(&dstPath[len+1 + strlen(de->d_name)], "\0", 1);
             //printf("dst path : %s\n", dstPath);
-            /*
              sem_wait(&mysem0);
              strcpy(shmaddr_out->dir, dstPath);
              shmaddr_out->flag = 1;
@@ -74,7 +73,7 @@ void dfs(char*currPath, char*currDstPath){
              int pid = shmaddr_f_to_p->pid;
              pid = 0x11223344;
              int fid = shmaddr_f_to_p->fid;
-             sem_post(&mysem0);*/
+             sem_post(&mysem0);
             
             
             int srcFd = open(srcPath, O_RDWR|O_CREAT);
@@ -132,7 +131,7 @@ int main(void)
     shmaddr_out = (_packet_out*)shmat(shmid_out, NULL, 0);
     
     
-    //sem_init(&mysem0, 0, 1);
+    sem_init(&mysem0, 0, 1);
     dfs(DIRRECTORY, dstDIR);
     
     return 0;
